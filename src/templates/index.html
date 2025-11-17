@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AIsthetic — AI Fashion Generator & Stylist</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <style>
+    /* Elegant, editorial-first stylesheet — lightweight and self-contained */
+    :root{
+      --bg:#0b0b0d; --panel:rgba(255,255,255,0.03); --muted:rgba(255,255,255,0.65);
+      --accent:#c9a16e; --accent-2:#f7e7d0; --glass-border:rgba(255,255,255,0.04);
+      --max-width:1280px;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;}
+    body{
+      margin:0; font-family:Inter,system-ui,Arial; background:var(--bg); color:#fff; -webkit-font-smoothing:antialiased; 
+    }
+    .container{max-width:var(--max-width); margin:0 auto}
+
+    /* Fullscreen hero background */
+    .hero-full{
+      position:relative; height:100vh; width:100%; overflow:hidden; display:flex; align-items:center; justify-content:center;
+      color:#fff;
+    }
+    .hero-bg{
+      position:absolute; inset:0; background-position:center; background-size:cover; background-repeat:no-repeat; transform:scale(1.04);
+      transition:opacity 400ms ease, transform 600ms ease; will-change:opacity,transform;
+    }
+    /* overlay content that fades as we scroll */
+    .hero-overlay{
+      position:relative; z-index:3; text-align:left; max-width:1100px; padding:48px 20px; width:100%;
+      display:flex; align-items:center; justify-content:space-between; gap:20px;
+    }
+    .hero-overlay .left{max-width:62%;}
+    .hero-title{font-family:'Playfair Display',serif; font-size:46px; margin:0 0 12px}
+    .hero-sub{color:var(--muted); margin:0 0 18px; max-width:50ch}
+    .hero-cta{display:flex; gap:12px}
+    .btn{border-radius:10px; padding:12px 16px; border:none; cursor:pointer; font-weight:600}
+    .btn-primary{background:var(--accent); color:#0b0b0d}
+    .btn-secondary{background:transparent; color:var(--muted); border:1px solid var(--glass-border)}
+
+    /* sticky header */
+    header.site-header{position:fixed; top:0; left:0; right:0; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 28px; z-index:50; transition:backdrop-filter 300ms ease, background-color 300ms ease;}
+    header.site-header.scrolled{backdrop-filter: blur(6px); background: rgba(6,6,8,0.35);}
+    header .brand{display:flex; align-items:center; gap:14px}
+    .brand .logo{width:48px; height:48px; border-radius:8px; background:transparent; display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-weight:700; font-size:18px; color:var(--accent); border:1px solid var(--glass-border)}
+    header nav.top-nav{display:flex; gap:16px}
+    header nav.top-nav a{color:var(--muted); text-decoration:none; font-size:13px}
+
+    /* main content area that scrolls over hero */
+    main.app-area{margin-top:0; padding-top:32px; position:relative; z-index:5;}
+    /* when hero fades, we want content to appear as transparent overlay scroll */
+    .scroll-overlay{background: linear-gradient(180deg, rgba(11,11,13,0.6), rgba(11,11,13,0.9)); min-height:40vh; padding:40px 20px}
+
+    /* Main grid */
+    .content-wrap{max-width:var(--max-width); margin:0 auto}
+    .app-grid{display:grid; grid-template-columns:420px 1fr; gap:20px; margin-top:18px}
+    .card{background:var(--panel); border-radius:12px; padding:16px; border:1px solid var(--glass-border)}
+
+    /* Controls */
+    label{display:block; margin-bottom:8px; font-size:13px; color:var(--muted)}
+    textarea.prompt{width:100%; min-height:110px; resize:vertical; padding:12px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); background:transparent; color:inherit}
+    .controls-row{display:flex; gap:10px; margin-top:12px}
+    .controls-row select, .controls-row input[type=range]{background:transparent; color:inherit; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.03)}
+
+    /* Stylist */
+    .stylist-area textarea{width:100%; min-height:64px; padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.03); background:transparent}
+    .stylist-output{margin-top:12px; display:none}
+    .chip{display:inline-block; padding:6px 10px; border-radius:999px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.02); color:var(--muted); font-size:13px}
+
+    /* Preview area */
+    .image-wrap{height:520px; border-radius:12px; overflow:hidden; display:flex; align-items:center; justify-content:center; border:1px solid var(--glass-border); background:#080808}
+    .image-wrap img{max-width:100%; height:100%; object-fit:cover}
+
+    .meta{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-top:12px}
+    .swatches{display:flex; gap:10px; align-items:center}
+    .swatch{width:44px; height:44px; border-radius:6px; cursor:pointer; border:1px solid rgba(255,255,255,0.03)}
+
+    .gallery{display:flex; gap:10px; margin-top:12px}
+    .thumb{width:140px; height:90px; border-radius:8px; overflow:hidden; cursor:pointer; border:1px solid rgba(255,255,255,0.03)}
+    .thumb img{width:100%; height:100%; object-fit:cover}
+
+    footer{margin-top:18px; color:var(--muted); font-size:13px}
+
+    @media (max-width:980px){
+      .hero-title{font-size:28px}
+      .hero-overlay .left{max-width:100%;}
+      .app-grid{grid-template-columns:1fr}
+      .image-wrap{height:360px}
+    }
+
+  </style>
+</head>
+<body>
+  <!-- Sticky header -->
+  <header class="site-header" id="siteHeader">
+    <div class="brand">
+      <div class="logo">AI</div>
+      <div>
+        <h1 style="margin:0; font-family:'Playfair Display',serif;">AIsthetic</h1>
+        <div style="font-size:12px; color:var(--muted)">AI Fashion Generator • Stylist Assistant</div>
+      </div>
+    </div>
+    <nav class="top-nav">
+      <a href="#generator">Generator</a>
+      <a href="#stylist">Stylist</a>
+      <a href="#about">About</a>
+    </nav>
+  </header>
+
+  <!-- Full-screen hero with background image -->
+  <section class="hero-full" id="heroFull">
+    <div class="hero-bg" id="heroBg" style="background-image:url('/static/img/hero-large.jpg');"></div>
+    <div class="hero-overlay">
+      <div class="left">
+        <h2 class="hero-title">Create runway-ready outfits — instantly</h2>
+        <p class="hero-sub">Type your idea (material, color, mood, lighting) and see a generated look. Ask the stylist for accessories, hairstyles and shopping references.</p>
+        <div class="hero-cta">
+          <button class="btn btn-primary" onclick="document.getElementById('prompt').focus(); scrollToGenerator();">Generate a Look</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('chatPrompt').focus(); scrollToGenerator();">Ask the Stylist</button>
+        </div>
+      </div>
+      <div class="right" style="min-width:320px; text-align:right;">
+        <div style="width:320px; height:220px; border-radius:12px; overflow:hidden; border:1px solid var(--glass-border); background:#070707; display:inline-block">
+          <img src="/static/img/hero-thumb.jpg" alt="hero preview" style="width:100%; height:100%; object-fit:cover" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main content scrolls above the hero with translucent overlay -->
+  <main class="app-area" id="mainApp">
+    <div class="scroll-overlay">
+      <div class="content-wrap">
+        <section id="generator">
+          <div class="app-grid">
+            <aside>
+              <div class="card">
+                <form id="genForm" method="post" action="/" onsubmit="onGenerate(event)">
+                  <label for="prompt">Describe the outfit</label>
+                  <textarea id="prompt" name="prompt" class="prompt" placeholder="e.g. cozy oversized knit sweater, skinny jeans, white sneakers">{{ prompt|default('') }}</textarea>
+
+                  <div class="controls-row" style="margin-top:12px">
+                    <select name="size" id="size">
+                      <option value="1024x1024">1024 × 1024</option>
+                      <option value="896x1152">896 × 1152</option>
+                      <option value="1152x896">1152 × 896</option>
+                    </select>
+                    <select name="variations" id="variations">
+                      <option value="1">Variations: 1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                    </select>
+                  </div>
+
+                  <div style="display:flex; gap:12px; align-items:center; margin-top:12px">
+                    <button id="genBtn" class="btn btn-primary" type="submit">Generate</button>
+                    <div style="font-size:13px; color:var(--muted)">Tip: include fabric & lighting for better results</div>
+                  </div>
+                </form>
+              </div>
+
+              <div class="card" id="stylist">
+                <div style="display:flex; justify-content:space-between; align-items:center">
+                  <div style="font-weight:700">Ask the Stylist</div>
+                  <div style="color:var(--muted); font-size:12px">AI outfit assistant</div>
+                </div>
+
+                <div class="stylist-area" style="margin-top:10px">
+                  <textarea id="chatPrompt" class="stylist-textarea" placeholder="Ask about the outfit or request improvements..."></textarea>
+                  <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+                    <button class="btn btn-primary" id="askStylistBtn" onclick="askStylist()">Ask</button>
+                  </div>
+
+                  <div id="stylistOutput" class="stylist-output">
+                    <div id="stylistJson" style="white-space:pre-wrap; margin-top:8px"></div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+                      <button class="btn btn-secondary" id="useEnhancedBtn" onclick="useEnhancedPrompt()">Use Enhanced Prompt</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card" style="margin-top:14px">
+                <div style="font-weight:700; margin-bottom:8px">Saved looks</div>
+                <div id="savedHistory" style="display:flex; gap:10px; overflow:auto;">
+                  <!-- thumbnails inserted here -->
+                </div>
+              </div>
+            </aside>
+
+            <section>
+              <div class="card">
+                <div class="image-wrap" id="imageWrap">
+                  {% if image_b64 %}
+                    <img id="mainImage" src="{{ image_b64 }}" alt="Generated fashion" loading="lazy" />
+                  {% else %}
+                    <div style="text-align:center; color:var(--muted); padding:28px;">
+                      <div style="font-family:'Playfair Display',serif; font-size:20px; font-weight:700; margin-bottom:8px;">Your generated look will appear here</div>
+                      <div style="max-width:520px; margin:0 auto;">Type a prompt and click <strong>Generate</strong>. Try: "black velvet blazer with gold embroidery, runway lighting".</div>
+                    </div>
+                  {% endif %}
+                </div>
+
+                <div class="meta">
+                  <div>
+                    <div style="display:flex; gap:12px; align-items:center">
+                      <div class="chip">{{ style_label|default('—') }}</div>
+                      <div style="color:var(--muted); font-size:13px">Auto-detected style</div>
+                    </div>
+
+                    <div style="margin-top:12px">
+                      <div style="font-size:13px; color:var(--muted); margin-bottom:8px">Color palette — click to copy hex</div>
+                      <div class="swatches">
+                        {% if palette %}
+                          <div class="swatches">
+                            {% for c in palette %}
+                              <div class="swatch"
+                                  title="{{ c }}"
+                                  style="background-color: {{ c }}"
+                                  onclick="copyHex('{{ c }}', this)">
+                              </div>
+                            {% endfor %}
+                          </div>
+                        {% else %}
+                          <div style="color:var(--muted)">—</div>
+                        {% endif %}
+
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style="text-align:right; min-width:220px">
+                    <div style="font-size:13px; color:var(--muted); margin-bottom:8px">Accessory suggestions</div>
+                    <div class="suggestions">
+                      <pre>{{ rec_text|default('—') }}</pre>
+                    </div>
+
+                    {% if image_b64 %}
+                      <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
+                        <a id="downloadBtn" class="btn btn-primary" href="{{ image_b64 }}" download="look.png" style="text-decoration:none; padding:10px 12px; font-size:13px">Download</a>
+                        <button onclick="shareLook()" class="btn btn-secondary">Share</button>
+                      </div>
+                    {% endif %}
+                  </div>
+                </div>
+
+                <div id="outImages" class="gallery">
+                  {% if out_images %}
+                    {% for img in out_images %}
+                      <div class="thumb" onclick="document.getElementById('mainImage').src='{{ img }}'">
+                        <img src="{{ img }}" alt="variation" loading="lazy" />
+                      </div>
+                    {% endfor %}
+                  {% endif %}
+                </div>
+              </div>
+
+              <footer>
+                <div>Made with ♥ • AIsthetic demo</div>
+              </footer>
+            </section>
+          </div>
+        </section>
+
+        <section id="about" style="margin-top:28px">
+          <div class="card">
+            <h3 style="margin-top:0;">About AIsthetic</h3>
+            <p style="color:var(--muted);">AIsthetic converts natural-language outfit ideas into photoreal fashion images and provides a stylist assistant to refine looks, suggest accessories, and generate shopping references. Built to run with lightweight local pipelines and optional remote inference.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Scroll behaviour: fade hero background and toggle header style
+    const heroBg = document.getElementById('heroBg');
+    const siteHeader = document.getElementById('siteHeader');
+    const heroFull = document.getElementById('heroFull');
+
+    function onScroll(){
+      const sc = window.scrollY || document.documentElement.scrollTop;
+      const vh = window.innerHeight || document.documentElement.clientHeight;
+      // fade hero background as user scrolls past 0..vh/1.8
+      const t = Math.min(Math.max(sc / (vh * 0.9), 0), 1);
+      if(heroBg){ heroBg.style.opacity = String(Math.max(1 - t*1.1, 0)); heroBg.style.transform = `scale(${1 + t*0.02})`; }
+      if(siteHeader){ if(sc > 30) siteHeader.classList.add('scrolled'); else siteHeader.classList.remove('scrolled'); }
+    }
+    window.addEventListener('scroll', onScroll, { passive:true });
+    window.addEventListener('resize', onScroll);
+    onScroll();
+
+    
+    /* --- helper: try to recover JSON from raw model text --- */
+    function tryParseJsonFromRaw(raw) {
+      if (!raw || typeof raw !== "string") return null;
+      // 1) Try fenced json block first: ```json ... ```
+      let m = raw.match(/```json\s*([\s\S]*?)```/i);
+      if (!m) m = raw.match(/```([\s\S]*?)```/); // any fenced block
+      let candidate = m ? m[1] : null;
+
+      // 2) If no fenced block, try to find the first {...} object substring
+      if (!candidate) {
+        const objMatch = raw.match(/\{[\s\S]*\}/);
+        if (objMatch) candidate = objMatch[0];
+      }
+
+      if (!candidate) return null;
+
+      // sanitize common issues: remove leading/trailing backticks/spaces
+      candidate = candidate.trim().replace(/^[`"' \r\n]+|[`"' \r\n]+$/g, "");
+
+      // remove trailing commas before closing brackets/braces: ,]
+      candidate = candidate.replace(/,(\s*[\]\}])/g, "$1");
+
+      // try parse
+      try {
+        return JSON.parse(candidate);
+      } catch (e) {
+        // last attempt: try to un-escape newlines and quotes if the JSON string was double-encoded
+        try {
+          const unescaped = candidate.replace(/\\n/g, "\n").replace(/\\"/g, '"');
+          return JSON.parse(unescaped);
+        } catch (e2) {
+          return null;
+        }
+      }
+    }
+
+    /* --- helper: markdown link -> anchor HTML --- */
+    function mdLinkToAnchor(md) {
+      if (!md) return md;
+      const m = md.match(/\[([^\]]+)\]\(([^)]+)\)/);
+      if (m) return `<a href="${m[2]}" target="_blank" rel="noopener noreferrer">${m[1]}</a>`;
+      return md.replace(/\n/g, "<br>");
+    }
+
+    /* --- main: askStylist --- */
+    async function askStylist() {
+      const prompt = document.getElementById("chatPrompt").value.trim();
+      const outBox = document.getElementById("stylistOutput");
+      const outJson = document.getElementById("stylistJson");
+      const useBtn = document.getElementById("useEnhancedBtn");
+
+      outJson.innerHTML = "";
+      outBox.style.display = "block";
+
+      if (!prompt) {
+        outJson.innerText = "Please enter a question.";
+        return;
+      }
+
+      try {
+        const form = new FormData();
+        form.append("prompt", prompt);
+
+        const res = await fetch("/chatbot", { method: "POST", body: form });
+        const data = await res.json();
+
+        if (!data || data.ok === false) {
+          outJson.innerText = "Error: " + (data?.error || "Unknown error from chatbot");
+          return;
+        }
+
+        // 1) prefer server-parsed JSON if available
+        let parsed = data.parsed || null;
+
+        // 2) otherwise try to recover JSON from data.raw
+        if (!parsed && data.raw) {
+          parsed = tryParseJsonFromRaw(data.raw);
+        }
+
+        // 3) If parsing still failed — show raw but prettified
+        if (!parsed) {
+          // show fenced/raw but nicer
+          outJson.innerHTML = `<pre style="white-space:pre-wrap; font-size:13px; color:var(--muted)">${escapeHtml(data.raw || "No response")}</pre>`;
+          return;
+        }
+
+        // Render structured output as friendly HTML
+        const accessoriesHTML = (parsed.accessories || []).map(a => `• ${escapeHtml(a)}`).join("<br>") || "—";
+        const hairstyleHTML = (parsed.hairstyle || []).map(a => `• ${escapeHtml(a)}`).join("<br>") || "—";
+        const footwearHTML = (parsed.footwear || []).map(a => `• ${escapeHtml(a)}`).join("<br>") || "—";
+        const refsHTML = (parsed.references || []).map(r => mdLinkToAnchor(r) ).join("<br>") || "—";
+        const enhanced = parsed.enhanced_prompt || "";
+
+        outJson.innerHTML = `
+          <div style="font-size:14px; line-height:1.4;">
+            <div><strong>Enhanced Prompt</strong><br>${escapeHtml(enhanced)}</div><br>
+            <div><strong>Accessories</strong><br>${accessoriesHTML}</div><br>
+            <div><strong>Hairstyles</strong><br>${hairstyleHTML}</div><br>
+            <div><strong>Footwear</strong><br>${footwearHTML}</div><br>
+            <div><strong>Shopping References</strong><br>${refsHTML}</div>
+          </div>
+        `;
+
+        // store for "Use Enhanced Prompt" button
+        window._enhancedPrompt = enhanced;
+      } catch (err) {
+        outJson.innerText = "Network or parsing error: " + String(err);
+      }
+    }
+
+    /* --- helper: escape HTML to avoid injection when injecting raw text --- */
+    function escapeHtml(s) {
+      if (!s && s !== 0) return "";
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    /* --- use enhanced prompt button --- */
+    function useEnhancedPrompt() {
+      if (!window._enhancedPrompt) {
+        alert("No enhanced prompt available. Ask the stylist first.");
+        return;
+      }
+      document.getElementById("prompt").value = window._enhancedPrompt;
+      document.getElementById("prompt").focus();
+    }
+
+    
+
+
+    function scrollToGenerator(){
+      const el = document.getElementById('generator');
+      if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+    }
+
+    // Lightweight front-end helpers wired to your Flask hooks
+    function onGenerate(e){
+      // show disabled state while submitting
+      const btn = document.getElementById('genBtn');
+      if(btn){ btn.setAttribute('disabled','true'); }
+      // allow normal form submit
+    }
+
+    function copyHex(hex, el){
+      if(navigator.clipboard && hex){ navigator.clipboard.writeText(hex).then(()=>{ el.style.outline='3px solid rgba(255,255,255,0.08)'; setTimeout(()=>el.style.outline='none',600)}).catch(()=>{}); }
+    }
+
+    function shareLook(){ alert('Share functionality — implement short URL generation and social links.'); }
+
+    /* --- ensure these fallbacks are last (won't overwrite if the above were added) --- */
+    window.askStylist = window.askStylist || askStylist;
+    window.useEnhancedPrompt = window.useEnhancedPrompt || useEnhancedPrompt;
+  </script>
+</body>
+</html>
